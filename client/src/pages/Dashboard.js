@@ -12,32 +12,39 @@ function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchSessions = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) {
+  const fetchSessions = async () => {
+    const token = localStorage.getItem('token');
+    const userId = localStorage.getItem('userId');
+    
+    if (!token || !userId) {
+      setMessage('Please log in to view your sessions.');
+      setIsLoading(false);
+      navigate('/login');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const res = await axios.get(`http://localhost:5000/session/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSessions(res.data);
+      setMessage('');
+    } catch (err) {
+      if (err.response?.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('userId');
         navigate('/login');
-        return;
       }
-      try {
-        setIsLoading(true);
-        const res = await axios.get(`http://localhost:5000/session/${localStorage.getItem('userId')}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setSessions(res.data);
-      } catch (err) {
-        if (err.response?.status === 401) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('userId');
-          navigate('/login');
-        }
-        setMessage(err.response?.data?.message || 'Failed to fetch sessions.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+      setMessage(err.response?.data?.message || 'Failed to fetch sessions.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchSessions();
-  }, [navigate]);
+  }, []);
 
   useEffect(() => {
     let data = [...sessions];
@@ -79,20 +86,13 @@ function Dashboard() {
     accuracy: s.accuracy
   }));
 
-  const refreshData = () => {
-    fetchSessions();
-  };
-
-  const deleteSession = async (sessionId) => {
-    try {
-      await axios.delete(`http://localhost:5000/session/${sessionId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-      fetchSessions(); // Refresh data
-    } catch (err) {
-      setMessage('Failed to delete session');
-    }
-  };
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -147,19 +147,20 @@ function Dashboard() {
               </select>
             </div>
 
-            <button
-              onClick={downloadCSV}
-              className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
-            >
-              Download CSV
-            </button>
-
-            <button
-              onClick={refreshData}
-              className="bg-yellow-500 text-white px-4 py-2 rounded-md hover:bg-yellow-600"
-            >
-              Refresh Data
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={fetchSessions}
+                className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600"
+              >
+                Refresh
+              </button>
+              <button
+                onClick={downloadCSV}
+                className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+              >
+                Download CSV
+              </button>
+            </div>
           </div>
 
           {/* Accuracy Chart */}
