@@ -154,7 +154,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📞 Contact
 
 Your Name - Prathamesh Gharat
-Project Link: [https://github.com/yourusername/fitness-form-analyzer](https://github.com/yourusername/fitness-form-analyzer)
+Project Link: https://github.com/TechFox6905/fitness-form-analyzer.git
 
 ---
 
