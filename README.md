@@ -153,7 +153,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Contact
 
-Your Name - [@yourtwitter](https://twitter.com/yourtwitter)
+Your Name - Prathamesh Gharat
 Project Link: [https://github.com/yourusername/fitness-form-analyzer](https://github.com/yourusername/fitness-form-analyzer)
 
 ---
