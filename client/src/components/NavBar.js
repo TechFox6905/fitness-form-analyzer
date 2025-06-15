@@ -1,21 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const NavBar = () => {
-  const [user, setUser] = useState(null);
+  const { userId, userName, logout } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-  }, []);
-
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
+    logout();
     navigate('/login');
   };
 
@@ -26,7 +18,7 @@ const NavBar = () => {
           <Link to="/" className="text-white text-xl font-bold">
             Fitness Form Analyzer
           </Link>
-          
+
           <div className="flex items-center space-x-6">
             <Link to="/" className="text-gray-300 hover:text-white">
               Home
@@ -37,10 +29,13 @@ const NavBar = () => {
             <Link to="/dashboard" className="text-gray-300 hover:text-white">
               Dashboard
             </Link>
-            
-            {user ? (
+
+            {userId ? (
+              // If logged in
               <div className="flex items-center space-x-4">
-                <span className="text-white">Welcome, {user.name}</span>
+                <span className="text-white">
+                  {userName ? `Welcome, ${userName}` : 'Welcome'}
+                </span>
                 <button
                   onClick={handleLogout}
                   className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
@@ -49,6 +44,7 @@ const NavBar = () => {
                 </button>
               </div>
             ) : (
+              // If not logged in
               <div className="flex items-center space-x-4">
                 <Link
                   to="/login"
