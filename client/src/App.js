@@ -7,6 +7,7 @@ import Login from './pages/Login.js';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import NavBar from './components/NavBar';
+import { AuthProvider } from './context/AuthContext';
 
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
@@ -19,30 +20,32 @@ const ProtectedRoute = ({ children }) => {
 
 function App() {
   return (
-    <Router>
-      <div>
-        <NavBar />
-        <Routes>
-          <Route path="/" element={
-            <ProtectedRoute>
-              <><Home /><PoseDetector /></>
-            </ProtectedRoute>
-          } />
-          <Route path="/upload" element={
-            <ProtectedRoute>
-              <Upload />
-            </ProtectedRoute>
-          } />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
-        </Routes>
-      </div>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <div>
+          <NavBar />
+          <Routes>
+            <Route path="/" element={
+              <ProtectedRoute>
+                <><Home /><PoseDetector /></>
+              </ProtectedRoute>
+            } />
+            <Route path="/upload" element={
+              <ProtectedRoute>
+                <Upload />
+              </ProtectedRoute>
+            } />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/dashboard" element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } />
+          </Routes>
+        </div>
+      </Router>
+    </AuthProvider>
   );
 }
 
