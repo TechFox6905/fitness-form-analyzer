@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const sessionSchema = new mongoose.Schema({
-  userID: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   exercise: { type: String, required: true },
   feedback: { type: String },
   accuracy: { type: Number },

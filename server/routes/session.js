@@ -21,10 +21,10 @@ function auth(req, res, next) {
 
 // Save workout session
 router.post('/', auth, async (req, res) => {
-  const { exercise, feedback, accuracy } = req.body;
+  const { exercise, feedback, accuracy, userId } = req.body;
   try {
     const session = new Session({
-      userID: req.user.userId,
+      userId: req.user.userId,
       exercise,
       feedback,
       accuracy
@@ -42,7 +42,7 @@ router.get('/:userId', auth, async (req, res) => {
     if (req.user.userId !== req.params.userId) {
       return res.status(403).json({ message: 'Forbidden' });
     }
-    const sessions = await Session.find({ userID: req.params.userId }).sort({ timestamp: -1 });
+    const sessions = await Session.find({ userId: req.params.userId }).sort({ timestamp: -1 });
     res.json(sessions);
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
