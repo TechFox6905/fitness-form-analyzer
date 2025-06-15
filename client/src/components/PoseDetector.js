@@ -4,6 +4,22 @@ import '@tensorflow/tfjs-backend-webgl';
 import * as poseDetection from '@tensorflow-models/pose-detection';
 import axios from 'axios';
 
+// Define connections between keypoints
+const POSE_CONNECTIONS = [
+  ['left_shoulder', 'right_shoulder'],
+  ['left_shoulder', 'left_elbow'],
+  ['left_elbow', 'left_wrist'],
+  ['right_shoulder', 'right_elbow'],
+  ['right_elbow', 'right_wrist'],
+  ['left_shoulder', 'left_hip'],
+  ['right_shoulder', 'right_hip'],
+  ['left_hip', 'right_hip'],
+  ['left_hip', 'left_knee'],
+  ['left_knee', 'left_ankle'],
+  ['right_hip', 'right_knee'],
+  ['right_knee', 'right_ankle'],
+];
+
 function PoseDetector() {
   const [feedback, setFeedback] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -13,6 +29,7 @@ function PoseDetector() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const detectorRef = useRef(null);
+  const [videoDimensions, setVideoDimensions] = useState({ width: 640, height: 480 });
 
   useEffect(() => {
     async function loadDetector() {
@@ -51,40 +68,76 @@ function PoseDetector() {
     setVideoFile(file);
     const video = videoRef.current;
     video.src = URL.createObjectURL(file);
+    
+    // Set video dimensions when metadata is loaded
+    video.onloadedmetadata = () => {
+      setVideoDimensions({
+        width: video.videoWidth,
+        height: video.videoHeight
+      });
+    };
+    
     setFeedback('Video loaded. Click "Analyze" to start.');
+  };
+
+  const drawKeypoint = (ctx, x, y, score) => {
+    if (score > 0.3) {
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, 2 * Math.PI);
+      ctx.fillStyle = '#00FF00';
+      ctx.fill();
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  };
+
+  const drawSkeleton = (ctx, keypoints) => {
+    POSE_CONNECTIONS.forEach(([i, j]) => {
+      const kp1 = keypoints.find(kp => kp.name === i);
+      const kp2 = keypoints.find(kp => kp.name === j);
+
+      if (kp1 && kp2 && kp1.score > 0.3 && kp2.score > 0.3) {
+        ctx.beginPath();
+        ctx.moveTo(kp1.x, kp1.y);
+        ctx.lineTo(kp2.x, kp2.y);
+        ctx.strokeStyle = '#00FF00';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    });
   };
 
   const drawPose = (pose) => {
     const canvas = canvasRef.current;
-    if (!canvas) {
-      console.warn('Canvas is not ready yet');
-      return;
-    }
+    if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      console.warn('Failed to get canvas context');
-      return;
-    }
+    if (!ctx) return;
+
     const video = videoRef.current;
+    if (!video) return;
 
-    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-    ctx.drawImage(video, 0, 0, canvasRef.current.width, canvasRef.current.height);
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // Draw video frame
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // Draw keypoints
     pose.keypoints.forEach((kp) => {
-      if (kp.score > 0.5) {
-        ctx.beginPath();
-        ctx.arc(kp.x, kp.y, 5, 0, 2 * Math.PI);
-        ctx.fillStyle = '#00FF00';
-        ctx.fill();
-      }
+      drawKeypoint(ctx, kp.x, kp.y, kp.score);
     });
+
+    // Draw skeleton
+    drawSkeleton(ctx, pose.keypoints);
   };
 
   const saveSession = async (accuracy, feedback) => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) {
+      const userId = localStorage.getItem('userId');
+      if (!token || !userId) {
         setFeedback('Please log in to save your session.');
         return;
       }
@@ -94,7 +147,8 @@ function PoseDetector() {
         {
           exercise: exerciseName,
           accuracy: accuracy,
-          feedback: feedback
+          feedback: feedback,
+          userId: userId
         },
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -124,6 +178,11 @@ function PoseDetector() {
     const video = videoRef.current;
     const detector = detectorRef.current;
 
+    // Set canvas dimensions to match video
+    const canvas = canvasRef.current;
+    canvas.width = videoDimensions.width;
+    canvas.height = videoDimensions.height;
+
     video.play();
     setIsAnalyzing(true);
     setFeedback('Analyzing...');
@@ -140,17 +199,21 @@ function PoseDetector() {
         return;
       }
 
-      const poses = await detector.estimatePoses(video);
-      if (poses.length > 0) {
-        drawPose(poses[0]);
-        setPoseData(poses[0]);
+      try {
+        const poses = await detector.estimatePoses(video);
+        if (poses.length > 0) {
+          drawPose(poses[0]);
+          setPoseData(poses[0]);
 
-        // Calculate accuracy based on keypoint confidence
-        const keypoints = poses[0].keypoints;
-        const validKeypoints = keypoints.filter(kp => kp.score > 0.5);
-        const frameAccuracy = (validKeypoints.length / keypoints.length) * 100;
-        totalAccuracy += frameAccuracy;
-        frameCount++;
+          // Calculate accuracy based on keypoint confidence
+          const keypoints = poses[0].keypoints;
+          const validKeypoints = keypoints.filter(kp => kp.score > 0.3);
+          const frameAccuracy = (validKeypoints.length / keypoints.length) * 100;
+          totalAccuracy += frameAccuracy;
+          frameCount++;
+        }
+      } catch (error) {
+        console.error('Error during pose detection:', error);
       }
 
       requestAnimationFrame(detect);
@@ -184,21 +247,21 @@ function PoseDetector() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <video
-            ref={videoRef}
-            className="w-full rounded shadow"
-            controls
-            style={{ display: videoFile ? 'block' : 'none' }}
-            width="640"
-            height="480"
-          />
-          <canvas
-            ref={canvasRef}
-            width="640"
-            height="480"
-            className="w-full rounded shadow"
-            style={{ display: videoFile ? 'block' : 'none' }}
-          />
+          <div>
+            <video
+              ref={videoRef}
+              className="w-full rounded shadow"
+              controls
+              style={{ display: videoFile ? 'block' : 'none' }}
+            />
+          </div>
+          <div>
+            <canvas
+              ref={canvasRef}
+              className="w-full rounded shadow"
+              style={{ display: videoFile ? 'block' : 'none' }}
+            />
+          </div>
         </div>
 
         <div className="flex justify-center">
